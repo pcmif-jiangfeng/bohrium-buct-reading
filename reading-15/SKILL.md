@@ -29,6 +29,8 @@ python3 /skills/weekly-skill/scripts/query_graph.py /app/work/graph.json --out /
 
 Start with the single-edge filters. Run one question scoped to each paper and one substantive comparison using a shared predicate or concept. Use a two-edge path only when a question requires one. Inspect `source_coverage` for each paper: it lists the supported nodes, edges and queries that actually retrieved evidence there. If a manifest paper has no record, add its source first. For empty edge or query coverage, return to its passages and complete the graph or report the specific evidence gap. Preserve negative query results.
 
+Copy enough of a passage to include complete values, signs and units. The checker rejects a quotation of “5 mg” inside “15 mg” or “0.5 mg”. Check the experimental conditions and intended direction separately for both papers.
+
 Use the available Python command. The checker rejects unknown node references, wrong-source connections and mismatched quotes. Audit whether each quoted paragraph supports the edge direction and conditions. Recheck merge decisions against original sources and verify that distinct papers are represented. Save the graph and query results in the case's requested files. Reopen `/app/output/result.json` to verify the exact `case_id`, every `output_contract` key, and every referenced file. Record specific gaps due to missing source material, incomparable conditions, unreadable notation, or an unmatched query.
 
 ### Illustrative example

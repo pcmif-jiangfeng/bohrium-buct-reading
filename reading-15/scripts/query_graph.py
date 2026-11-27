@@ -4,6 +4,7 @@ import argparse
 from collections import defaultdict
 from itertools import islice
 import json
+import re
 from pathlib import Path
 import unicodedata
 
@@ -29,6 +30,16 @@ def records(rows):
     return by_id
 
 
+def contains_quote(passage, quote):
+    left = r"(?<![A-Za-z0-9_])" if re.match(r"[A-Za-z0-9_]", quote) else ""
+    right = r"(?![A-Za-z0-9_])" if re.search(r"[A-Za-z0-9_]$", quote) else ""
+    if quote[0].isascii() and quote[0].isdigit():
+        left += r"(?<![0-9][.,])(?<![+−-])"
+    if quote[-1].isascii() and quote[-1].isdigit():
+        right += r"(?![.,][0-9])"
+    return re.search(left + re.escape(quote) + right, passage) is not None
+
+
 def verify_evidence(owner, sources):
     verified_sources = set()
     if not owner["evidence"]:
@@ -38,7 +49,7 @@ def verify_evidence(owner, sources):
         paragraph = text(evidence["paragraph_id"])
         source = sources.get(source_id)
         passage = source["passages"].get(paragraph) if source else None
-        if passage is None or text(evidence["quote"]) not in text(passage):
+        if passage is None or not contains_quote(text(passage), text(evidence["quote"])):
             raise ValueError(f"{owner['id']}: quote does not match {source_id}/{paragraph}")
         verified_sources.add(source_id)
     return verified_sources

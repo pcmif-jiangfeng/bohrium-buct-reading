@@ -158,6 +158,11 @@ def extract_page(page, layout, split):
         warnings.append("unmapped characters need glyph inspection")
     return {
         "physical_page": page.page_number,
+        "image_regions": [
+            {"id": f"p{page.page_number}-img{index}",
+             "bbox": rounded_box(image[key] for key in ("x0", "top", "x1", "bottom"))}
+            for index, image in enumerate(page.images, start=1)
+        ],
         "width": round(page.width, 2),
         "height": round(page.height, 2),
         "page_bbox": [round(value, 2) for value in page.bbox],

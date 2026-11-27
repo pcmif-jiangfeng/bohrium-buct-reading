@@ -25,6 +25,24 @@ def contains_quote(passage, quote):
     return re.search(left + re.escape(quote) + right, passage) is not None
 
 
+def table_cell(wrapper, coordinates):
+    if wrapper is None or wrapper.tag.rsplit("}", 1)[-1] != "table-wrap":
+        raise ValueError("table ID must name one JATS table-wrap")
+    if not isinstance(coordinates, list) or len(coordinates) != 2 or not all(
+        type(value) is int and value >= 1 for value in coordinates
+    ):
+        raise ValueError("cell requires one-based row and cell positions")
+    tables = wrapper.findall(".//{*}table")
+    if len(tables) != 1:
+        raise ValueError("expected one XML table in wrapper")
+    rows = tables[0].findall(".//{*}tr")
+    row, column = coordinates
+    cells = [el for el in rows[row - 1] if el.tag.rsplit("}", 1)[-1] in {"td", "th"}] if row <= len(rows) else []
+    if column > len(cells):
+        raise ValueError("cell is outside the selected table")
+    return "".join(cells[column - 1].itertext())
+
+
 def file_passages(root, source, issues):
     source_id = text(source["id"])
     filename = source["path"]
@@ -43,7 +61,7 @@ def file_passages(root, source, issues):
         raise ValueError("duplicate locator after normalization")
     lines, nodes = None, {}
     document = None
-    if any(isinstance(selector, dict) and "jats_id" in selector for selector in anchors.values()):
+    if any(isinstance(selector, dict) and ("jats_id" in selector or "table_id" in selector) for selector in anchors.values()):
         for element in ET.fromstring(data).iter():
             identifier = element.get("id") or element.get("{http://www.w3.org/XML/1998/namespace}id")
             if identifier:
@@ -56,6 +74,8 @@ def file_passages(root, source, issues):
                 if node is None or node.tag.rsplit("}", 1)[-1] not in {"p", "td", "th", "caption"}:
                     raise ValueError("JATS ID must name one unambiguous paragraph, cell, or caption")
                 passage = "".join(node.itertext())
+            elif isinstance(selector, dict) and set(selector) == {"table_id", "cell"}:
+                passage = table_cell(nodes.get(text(selector["table_id"])), selector["cell"])
             elif isinstance(selector, dict) and set(selector) == {"json_pointer"}:
                 if document is None:
                     document = json.loads(data)

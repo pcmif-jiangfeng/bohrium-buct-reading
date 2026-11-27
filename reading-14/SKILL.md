@@ -22,6 +22,8 @@ python3 /skills/weekly-skill/scripts/check_assertions.py /app/work/assertions.js
 
 For structured JSON materials, locate the text field in the actual supplied file and use an anchor such as `{"json_pointer":"/paragraphs/0/text"}`. The checker resolves a single string in the source, including in compact one-line JSON. Keep the original paragraph ID alongside the pointer for human review. Check the paragraph identity and claim scope before approval.
 
+For tables with an identified JATS table-wrap but no cell IDs, use a selector such as `{"table_id":"T1","cell":[2,3]}`. Both coordinates start at one. Count XML rows including header rows, then the actual th/td children in that row. For spans, positions count stored cells; verify visual column membership separately. Cite the value, its header and any qualifying footnote using separate anchors.
+
 Use the root containing the actual input files. For a PDF text extraction, use the directory containing that generated file and cite the physical PDF page in the final evidence. `source_files` records the relative path and SHA-256 of each material read. Fix `invalid_source_anchor`, `unresolved_locator`, and `quote_mismatch` entries against the source. If a source remains unavailable, preserve other verified claims and report the affected records as partial or undetermined. Running without `--source-root` accepts older ledgers with copied source strings and provides a preliminary consistency check. Before delivery, reopen `result.json` and each requested export, check all `output_contract` keys, and verify that every assertion refers to the intended source and qualifier.
 
 ### Illustrative example

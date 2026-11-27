@@ -21,6 +21,8 @@ The intermediate JSON uses `[x0, top, x1, bottom]` in PDF points. Each page has 
 
 A line with `margin_candidate` repeats at a similar height in the outer 8% of at least two physical pages. Compare it with the page image before moving it from the body into header/footer metadata. Preserve its original ID and coordinates. Unique footnotes, changing page labels and recurring table heads require separate inspection.
 
+Each page also lists embedded raster image regions with physical page IDs and coordinates. Use those boxes to locate candidate panels on the rendered page and pair them with the visible caption and label. One figure may use several images, and a page-sized image may be a scan. Inspect vector-only diagrams separately.
+
 Render the pages in scope and check column transitions, figure boundaries, table and figure captions, section headings, footnotes, and repeated page furniture. Check the first and last line in each column against the image. Join wrapped lines only where the original paragraph continues. Keep title, authors, abstract, section hierarchy and references as separate records when requested. Transcribe visible formula symbols and preserve the printed equation label and page region. Mark unresolved glyphs or reading order at their source location.
 
 For a page without a text layer, follow the case's OCR policy and use the supplied renderer or OCR engine if available. Check OCR text against the page image and label the extraction method. Record password, unreadable image, absent content, and uncertain ordering as distinct reasons. Preserve successfully recovered pages if another page is unavailable. If the helper or its dependency is unavailable, use the pinned extraction tool and record its actual output and limitations.
