@@ -1,6 +1,8 @@
 """Extract source-positioned PDF line records with two-column reading order."""
 
 import argparse
+from bisect import bisect_right
+from itertools import groupby
 import json
 from pathlib import Path
 import sys
@@ -40,7 +42,33 @@ def infer_boundary(bands, width, left_edge):
             if columns is not None and all(len(column) >= 2 for column in columns):
                 hits += 1
         best = max(best, (hits, -abs(boundary - half), boundary))
-    return best[2] if best[0] >= 4 else None
+    if best[0] >= 4:
+        return best[2]
+
+    # Staggered columns may never share a baseline. Require tracks of long,
+    # similarly aligned lines on both sides over the same vertical interval.
+    candidates = []
+    for tick in range(42, 59):
+        boundary = left_edge + width * tick / 100
+        tracks = ([], [])
+        for band in bands:
+            if len(band) < 3 or band[-1]["x1"] - band[0]["x0"] < width * 0.12:
+                continue
+            if band[-1]["x1"] <= boundary - margin / 2:
+                tracks[0].append(band[0])
+            elif band[0]["x0"] >= boundary + margin / 2:
+                tracks[1].append(band[0])
+        if min(map(len, tracks)) < 4:
+            continue
+        top = max(track[0]["top"] for track in tracks)
+        bottom = min(track[-1]["top"] for track in tracks)
+        counts = []
+        for track in tracks:
+            starts = sorted(word["x0"] for word in track if top <= word["top"] <= bottom)
+            counts.append(max((sum(0 <= x - start <= margin * 2 for x in starts) for start in starts), default=0))
+        if min(counts) >= 3:
+            candidates.append((min(counts), -abs(boundary - half), boundary))
+    return max(candidates)[2] if candidates else None
 
 
 def ordered_lines(bands, width, boundary):
@@ -67,8 +95,35 @@ def ordered_lines(bands, width, boundary):
     yield from (("right", line) for line in right_lines)
 
 
+def rounded_box(box):
+    return [round(value, 2) for value in box]
+
+
+def ruled_tables(page):
+    for table in sorted(page.find_tables(), key=lambda item: (item.bbox[1], item.bbox[0])):
+        values = table.extract(x_tolerance=1.7)
+        # Two populated rows distinguish a data grid from most frames and artwork.
+        if sum(sum(bool(text and text.strip()) for text in row) >= 2 for row in values) < 2:
+            continue
+        rows = [[None if box is None else {"text": text or "", "bbox": rounded_box(box)}
+                 for box, text in zip(row.cells, texts)] for row, texts in zip(table.rows, values)]
+        yield table.cells, {"bbox": rounded_box(table.bbox), "rows": rows}
+
+
+def inside_cell(word, cells):
+    x = (word["x0"] + word["x1"]) / 2
+    y = (word["top"] + word["bottom"]) / 2
+    return any(left <= x < right and top <= y < bottom for left, top, right, bottom in cells)
+
+
 def extract_page(page, layout, split):
-    words = page.extract_words(use_text_flow=False, expand_ligatures=False, x_tolerance=1.7)
+    all_words = page.extract_words(use_text_flow=False, expand_ligatures=False, x_tolerance=1.7)
+    tables, cells = [], []
+    if all_words:
+        for boxes, table in ruled_tables(page):
+            tables.append({"id": f"p{page.page_number}-t{len(tables) + 1}", **table})
+            cells.extend(boxes)
+    words = [word for word in all_words if not inside_cell(word, cells)] if cells else all_words
     bands = line_bands(words)
     if layout == "two" and words:
         boundary = page.bbox[0] + page.width * split
@@ -77,24 +132,29 @@ def extract_page(page, layout, split):
     else:
         boundary = None
 
+    # A spanning table remains a reading-order break after its text is moved to cells.
+    cuts = sorted(table["bbox"][1] for table in tables
+                  if boundary is not None and table["bbox"][0] < boundary < table["bbox"][2])
+    regions = groupby(bands, key=lambda band: bisect_right(cuts, band[0]["top"]))
+    ordered = (line for _, region in regions for line in ordered_lines(region, page.width, boundary))
     lines = []
-    for number, (column, items) in enumerate(ordered_lines(bands, page.width, boundary), start=1):
+    for number, (column, items) in enumerate(ordered, start=1):
         lines.append({
             "id": f"p{page.page_number}-l{number}",
             "region": column,
-            "bbox": [round(value, 2) for value in (
+            "bbox": rounded_box((
                 min(word["x0"] for word in items), min(word["top"] for word in items),
                 max(word["x1"] for word in items), max(word["bottom"] for word in items),
-            )],
+            )),
             "text": " ".join(word["text"] for word in items),
         })
 
     warnings = []
-    if not words:
+    if not all_words:
         warnings.append("no selectable text was extracted")
-    elif any(not word["upright"] for word in words):
+    elif any(not word["upright"] for word in all_words):
         warnings.append("rotated text needs visual ordering review")
-    if any("\ufffd" in line["text"] or "(cid:" in line["text"] for line in lines):
+    if any("\ufffd" in word["text"] or "(cid:" in word["text"] for word in all_words):
         warnings.append("unmapped characters need glyph inspection")
     return {
         "physical_page": page.page_number,
@@ -103,8 +163,26 @@ def extract_page(page, layout, split):
         "page_bbox": [round(value, 2) for value in page.bbox],
         "split_x": round(boundary, 2) if boundary is not None else None,
         "lines": lines,
+        "tables": tables,
         "warnings": warnings,
     }
+
+
+def mark_recurring_margins(pages):
+    groups = {}
+    for page in pages:
+        top, bottom = page["page_bbox"][1::2]
+        band = (bottom - top) * 0.08
+        for line in page["lines"]:
+            y0, y1 = line["bbox"][1::2]
+            side = "header" if y1 <= top + band else "footer" if y0 >= bottom - band else None
+            if side:
+                key = (side, line["text"], round((y0 - top) / (bottom - top), 2))
+                groups.setdefault(key, []).append((page["physical_page"], line))
+    for (side, _, _), occurrences in groups.items():
+        if len({page for page, _ in occurrences}) >= 2:
+            for _, line in occurrences:
+                line["margin_candidate"] = side
 
 
 def main():
@@ -130,8 +208,9 @@ def main():
         print(f"extract_layout: {error}", file=sys.stderr)
         return 2
 
+    mark_recurring_margins(pages)
     status = "ok"
-    if not any(page["lines"] for page in pages):
+    if not any(page["lines"] or page["tables"] for page in pages):
         status = "no_selectable_text"
     elif any(page["warnings"] for page in pages):
         status = "needs_review"

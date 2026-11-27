@@ -1,30 +1,34 @@
 ---
 name: auditable-pdf-reading-order
-description: Extract and audit the reading order of scientific PDFs with selectable text. Use for two-column scientific layouts, page-anchored text extraction, and review of ambiguous regions, formulas, figures, or tables in the source PDF.
+description: Parse scientific PDFs into source-anchored text and ruled table cells. Use for staggered or aligned reading columns, table row and column extraction, and visual review of figures, formulas, or scanned pages.
 ---
 
 # Auditable scientific PDF parsing
 
 ## Establish the source and output
 
-In Harbor read `/input/case.json`, `task.md`, and the actual PDF. Use the supplied `case_id`, page range and exact `output_contract`. Check `environment/resources.yaml` if present to identify the available PDF extraction, rendering, and OCR tools. Source pages are physical, one-based PDF pages. Keep printed page labels distinct from physical pages.
+In Harbor read `/input/case.json`, `task.md`, and the actual PDF named by the case. List each required field or deliverable with its page scope. Check `environment/resources.yaml` if present for extraction, rendering, and OCR tools. Use physical, one-based page numbers for evidence and keep printed page labels separately when requested.
 
 ## Extract and verify reading order
 
-Run the included [layout extractor](scripts/extract_layout.py) with Python 3.9+ and `pdfplumber` 0.11+. Use the pinned version in the execution image where available. This script groups words into visual line bands, finds a repeated center gutter, emits left then right within each vertical region, and preserves the coordinates and text of each result line. Lines spanning the gutter delimit vertical regions. Explicitly select `--layout single` or `--layout two` only after checking the page image. With `--layout two`, `--split` sets the column boundary as a fraction of page width when a known asymmetric template needs it.
+Run the included [layout extractor](scripts/extract_layout.py) with Python 3.9+ and `pdfplumber` 0.11+. It detects a repeated center gutter from lines with shared baselines, or from aligned blocks that overlap vertically when the baselines differ. Spanning lines and tables separate the adjacent column regions. Apply `--layout single` or `--layout two` after checking the page image if a document-wide override is appropriate. With `--layout two`, `--split` sets the horizontal fraction for an asymmetric template.
 
 ```sh
 python3 /skills/weekly-skill/scripts/extract_layout.py /input/paper.pdf --out /app/work/layout.json
 ```
 
-Inspect representative rendered pages and every flagged or ambiguous region. Verify the header and footer, column transitions, and reading order around figures, tables, section titles, and footnotes. Check the first and last line emitted for each column against the image. Preserve source spelling, punctuation, and symbols. Reconnect wrapped lines only when the original paragraph visibly continues. For a rotated page, overlapping or staggered text, a figure with embedded labels, or a complex table, isolate the region and inspect it directly. The line extractor does not infer merged cells, mathematical notation, or semantics. Keep text from such areas in separately identified structural records when the case requests them.
+The intermediate JSON uses `[x0, top, x1, bottom]` in PDF points. Each page has `lines` (`id`, `region`, `bbox`, `text`) and `tables` (`id`, `bbox`, `rows`). `rows` retains the physical cell grid: an empty cell has `text: ""` and its own coordinates, while a `null` slot has no independent cell box. Text inside the detected cell boxes lives in the table rather than in `lines`. Place each table back in the requested output near its verified caption, using the table and caption boxes as separate anchors. For an unruled or image-based table, inspect the rendered region and verify row and column assignments against visible labels. Keep a genuine empty cell distinct from unreadable or absent source content. Confirm merged cells and continuation pages visually.
+
+A line with `margin_candidate` repeats at a similar height in the outer 8% of at least two physical pages. Compare it with the page image before moving it from the body into header/footer metadata. Preserve its original ID and coordinates. Unique footnotes, changing page labels and recurring table heads require separate inspection.
+
+Render the pages in scope and check column transitions, figure boundaries, table and figure captions, section headings, footnotes, and repeated page furniture. Check the first and last line in each column against the image. Join wrapped lines only where the original paragraph continues. Keep title, authors, abstract, section hierarchy and references as separate records when requested. Transcribe visible formula symbols and preserve the printed equation label and page region. Mark unresolved glyphs or reading order at their source location.
 
 For a page without a text layer, follow the case's OCR policy and use the supplied renderer or OCR engine if available. Check OCR text against the page image and label the extraction method. Record password, unreadable image, absent content, and uncertain ordering as distinct reasons. Preserve successfully recovered pages if another page is unavailable. If the helper or its dependency is unavailable, use the pinned extraction tool and record its actual output and limitations.
 
 ## Deliver
 
-Use the source pages and verified blocks to fill the case's requested structure and record uncertainties. Preserve exact snippets, source file identity, physical page, and bounding box for key results. Use page, region and original label when coordinates are not available. Store work files in `/app/work` and final files, including `/app/output/result.json`, under `/app/output`. Retain the case identifier, requested documents, schema fields and honest execution status. Separate verified text from areas requiring manual review.
+Write verified content early and finish the requested structure from the original pages, line records and tables. Use the exact `output_contract` field names and the original `case_id` in `/app/output/result.json`. For key items keep the source file, physical page, exact snippet and box or original label. For table rows include a row and column index in addition to page and cell location. Save intermediate files in `/app/work` and requested editable artifacts in `/app/output`. Before delivery, reopen `result.json`, confirm every required key and referenced file, and record the precise page or field for each missing, unreadable or ambiguous item.
 
 ## Minimal illustrative example
 
-For an invented PDF page containing `Introduction` and `Methods` on the left and `Results` and `Discussion` on the right, verify the two-column layout and run with `--layout two`. The expected illustrative order is `Introduction`, `Methods`, `Results`, `Discussion`, with four line records and physical page 1. Coordinates and ordering for a real result must come from the actual case PDF.
+For an invented two-column PDF with several lines under each heading, run the default command and inspect page 1. The expected illustrative sequence is the left column's `Introduction` and `Methods`, then the right column's `Results` and `Discussion`. On a separate page with a ruled grid, a cell reading `12.5` appears in `tables[0].rows` with its own box. Use the actual case PDF to verify each record.

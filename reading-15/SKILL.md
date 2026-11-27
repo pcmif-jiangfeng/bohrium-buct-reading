@@ -1,6 +1,6 @@
 ---
 name: provenance-scoped-literature-graph
-description: Build a queryable graph from supplied research papers, preserve source-specific experiment identities, and attach exact passage evidence to every node and edge. Use for cross-paper scientific entity and relation extraction with provenance.
+description: Build an evidence-backed literature graph, distinguish shared concepts from paper-specific experiments, and query directed relations or two-edge paths across papers. Use for scientific entity alignment, relation extraction, and provenance review.
 ---
 
 # Provenance-scoped literature graph
@@ -17,14 +17,20 @@ Read `/input/case.json`, the supplied `task.md`, and the actual inputs. Start wi
 
 ## Validate and execute graph queries
 
-Python 3.9+ standard library. Build a separate `/app/work/graph.json` work file with `sources` (each `id` plus `passages`, a paragraph-ID-to-text object), `nodes` (each `id`, `label`, `scope`, and `evidence`), `edges` (each `id`, `subject`, `predicate`, `object`, `source_id`, and `evidence`), and `queries` (each `id` and `filters`). Evidence entries use `source_id`, `paragraph_id`, and literal `quote`. A node’s scope is the paper ID for a specific object or `concept` for a shared general entity with evidence from every paper where it is queried. In the work file, filters are exact equality on any of `subject`, `predicate`, `object`, and `source_id`. Run at least three distinct useful queries, including cross-paper retrieval where supported. Do not treat a no-match as proof of absence.
+Python 3.9+ standard library. Build `/app/work/graph.json` with `sources` (each `id` and `passages`, keyed by paragraph ID), `nodes` (each `id`, `label`, `scope`, and `evidence`), `edges` (each `id`, `subject`, `predicate`, `object`, `source_id`, and `evidence`), and `queries`. Evidence entries use `source_id`, `paragraph_id`, and a literal `quote`. A node's scope is the paper ID for a specific object or `concept` for a general entity with evidence from every paper where it is queried.
+
+- For one edge, give a query an `id` and `filters`. `subject`, `predicate`, `object`, and `source_id` use exact equality.
+- For a two-edge path, give the query an `id`, `start` node ID, and `path` of exactly two steps. Each step supplies `direction` (`out` follows subject to object, `in` follows object to subject) and nonempty `filters` using the same fields. A path stays within one source unless `allow_cross_source: true`. A source switch is allowed at a shared `concept` that already has evidence in both sources. The resulting path retains each edge's direction, conditions, original source and quote. A shared concept connects the records for comparison. Draw a scientific equivalence or causal conclusion only if separate source evidence supports it.
+- Run at least three queries that answer actual case questions. For a cross-paper comparison, report the two source-specific findings and why any difference in conditions matters. Include `no_match` as a gap in this graph. If `truncated` is true, narrow a filter to inspect more results. The helper returns the first 100 matching routes in input edge order.
 
 ```sh
-python3 scripts/query_graph.py /app/work/graph.json --out /app/work/queries.json
+python3 /skills/weekly-skill/scripts/query_graph.py /app/work/graph.json --out /app/work/queries.json
 ```
 
-Use the available Python command. The checker rejects unknown node references, wrong-source connections and mismatched quotes. Each executed query returns a subgraph of matching edges and their nodes with provenance. Read the extracted relations and merge ledger against the sources for scientific meaning and verify that both papers are represented. Fit the final result to the case’s original `output_contract`, including `case_id`, statuses and uncertainty. Save it as `/app/output/result.json` with required graph artifacts under `/app/output`. State any gap due to missing materials, lack of comparable conditions, unreadable notation, or an unmatched query.
+Start with the single-edge filters. Run one question scoped to each paper and one substantive comparison using a shared predicate or concept. Use a two-edge path only when a question requires one. Inspect `source_coverage` for each paper: it lists the supported nodes, edges and queries that actually retrieved evidence there. If a manifest paper has no record, add its source first. For empty edge or query coverage, return to its passages and complete the graph or report the specific evidence gap. Preserve negative query results.
+
+Use the available Python command. The checker rejects unknown node references, wrong-source connections and mismatched quotes. Audit whether each quoted paragraph supports the edge direction and conditions. Recheck merge decisions against original sources and verify that distinct papers are represented. Save the graph and query results in the case's requested files. Reopen `/app/output/result.json` to verify the exact `case_id`, every `output_contract` key, and every referenced file. Record specific gaps due to missing source material, incomparable conditions, unreadable notation, or an unmatched query.
 
 ### Illustrative example
 
-Given separate paper records for two experiments mentioning the same polymer, give each experiment a paper-scoped sample node and attach the two excerpt references to the shared polymer concept. A query filtering by the first paper’s `source_id` and `predicate=uses` should return its assay-to-sample edge and quoted passage. An otherwise identical query for a paper with no such edge returns `no_match`.
+For two illustrative experiments pointing to a shared polymer via `studies_material`, start at `sample-a`. Set the first step to `out` with the first paper's `source_id`, and the second to `in` with the second paper's `source_id`. Give both steps the `studies_material` predicate filter and set `allow_cross_source: true`. The result links `sample-a`, the polymer concept, and `sample-b` with two separately cited edges. An absent second relation yields `no_match`.
