@@ -8,7 +8,7 @@ import re
 import unicodedata
 
 
-NUMBERS = re.compile(r"[+−-]?[0-9]+(?:[.,][0-9]+)*(?:[eE][+−-]?[0-9]+)?(?:\s*[%‰])?")
+NUMBERS = re.compile(r"(?:(?:<=|>=|[<>≤≥])\s*)?[+−-]?[0-9]+(?:[.,][0-9]+)*(?:[eE][+−-]?[0-9]+)?(?:\s*[%‰])?")
 
 
 def normalized(text):
@@ -18,7 +18,7 @@ def normalized(text):
 
 
 def numbers(text):
-    return Counter(token.replace("−", "-").replace(" ", "").lower() for token in NUMBERS.findall(text))
+    return Counter(token.replace("≤", "<=").replace("≥", ">=").replace("−", "-").replace(" ", "").lower() for token in NUMBERS.findall(text))
 
 
 def ordered_ids(rows):

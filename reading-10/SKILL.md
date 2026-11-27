@@ -39,3 +39,5 @@ Resolve missing anchors, inaccurate quotes, and unsupported numeric tokens. Then
 ## Minimal example — illustrative input and output
 
 Given an illustrative `paper.md` with a `Results` heading and a paragraph reading `At 25 °C, the test recorded a 12% decrease after 5 min.`, run `python3 scripts/evidence.py index paper.md --source-id paper --out paper.index.json`. A finding may read `A 12% decrease was recorded after 5 min at 25 °C.` with the index locator for that paragraph and the original sentence as evidence. The example demonstrates the interface using invented input. Use the actual paper wherever the skill is run.
+
+Verify the full printed value: a quote beginning “5 mg” does not establish that value inside “15 mg” or “0.5 mg”. Include the sign, decimal and unit in the supporting passage.

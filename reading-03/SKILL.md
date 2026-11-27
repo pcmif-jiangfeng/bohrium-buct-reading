@@ -30,3 +30,5 @@ An unavailable check is a gap, never a pass. Use `python` on Windows if that is 
 ### Illustrative example
 
 Input passage `P4` reads “At 25 °C, the concentration did not exceed 2 mM [3].” A target field can read “在 25 °C 下，浓度未超过 2 mM [3]。” Use protected strings `°C`, `mM` and `[3]`, and keep the same passage ID so the range, negation and reference can be reviewed.
+
+When checking thresholds, keep the operator attached to its value. The checker flags a reversed or dropped symbolic inequality and accepts equivalent ASCII and Unicode forms. Review a comparator translated into words in context.

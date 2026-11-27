@@ -155,6 +155,12 @@ def read_json(path):
     return json.loads(path.read_text(encoding="utf-8-sig"))
 
 
+def matches_quote(quote, passage):
+    left = r"(?<![0-9.+−-])(?<![0-9],)" if quote[0].isdigit() else ""
+    right = r"(?![0-9]|[.,][0-9])" if quote[-1].isdigit() else ""
+    return re.search(left + re.escape(quote) + right, passage) is not None
+
+
 def check_evidence(entries, indexes):
     if not isinstance(entries, list) or not entries:
         raise ValueError("evidence JSON must be a nonempty list of claims")
@@ -190,7 +196,7 @@ def check_evidence(entries, indexes):
             quote = normalized(citation["quote"])
             if key not in passages:
                 failures.append(f"{note_id}: unknown anchor {key[0]}/{key[1]}")
-            elif not quote or quote not in passages[key]:
+            elif not quote or not matches_quote(quote, passages[key]):
                 failures.append(f"{note_id}: quote does not match {key[0]}/{key[1]}")
             else:
                 valid_citations += 1
