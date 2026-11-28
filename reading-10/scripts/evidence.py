@@ -101,6 +101,12 @@ def jats_blocks(path):
     body = article.find("./body")
     if body is not None:
         yield from visit(body, [], "body")
+    for ordinal, footnote in enumerate(article.findall(".//fn"), start=1):
+        content = normalized(" ".join("".join(p.itertext()) for p in footnote.findall("./p")))
+        if content:
+            anchor = footnote.get("id")
+            locator = f"JATS footnote {ordinal}" + (f" id={anchor}" if anchor else "")
+            yield {"section": ["Footnotes"], "locator": locator, "text": content}
 
 
 def pdf_blocks(path):

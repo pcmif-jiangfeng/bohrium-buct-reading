@@ -158,11 +158,6 @@ def extract_page(page, layout, split):
         warnings.append("unmapped characters need glyph inspection")
     return {
         "physical_page": page.page_number,
-        "image_regions": [
-            {"id": f"p{page.page_number}-img{index}",
-             "bbox": rounded_box(image[key] for key in ("x0", "top", "x1", "bottom"))}
-            for index, image in enumerate(page.images, start=1)
-        ],
         "width": round(page.width, 2),
         "height": round(page.height, 2),
         "page_bbox": [round(value, 2) for value in page.bbox],
@@ -190,6 +185,24 @@ def mark_recurring_margins(pages):
                 line["margin_candidate"] = side
 
 
+def recover_page_text(path):
+    from pypdf import PdfReader
+    from pypdf.errors import PdfReadError
+
+    try:
+        reader = PdfReader(path)
+        pages = []
+        for number, page in enumerate(reader.pages, start=1):
+            raw = page.extract_text() or ""
+            pages.append({"physical_page": number, "page_text": raw,
+                          "warnings": ["Verify reading order and tables on the rendered page."
+                                       if raw.strip() else "No selectable text. Inspect the page for OCR."]})
+    except PdfReadError as error:
+        raise ValueError(str(error)) from error
+    status = "needs_review" if any(p["page_text"].strip() for p in pages) else "no_selectable_text"
+    return {"source": path.name, "method": "pypdf_page_text", "status": status, "pages": pages}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("pdf", type=Path)
@@ -203,8 +216,15 @@ def main():
     try:
         import pdfplumber
     except ImportError:
-        print("extract_layout: pdfplumber 0.11+ is required", file=sys.stderr)
-        return 2
+        try:
+            result = recover_page_text(args.pdf)
+        except (ImportError, ValueError, OSError) as error:
+            print(f"extract_layout: page-text recovery unavailable: {error}", file=sys.stderr)
+            return 2
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print(json.dumps({"status": result["status"], "pages": len(result["pages"]), "method": result["method"]}))
+        return 1 if result["status"] == "no_selectable_text" else 0
 
     try:
         with pdfplumber.open(args.pdf) as pdf:

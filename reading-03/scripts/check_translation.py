@@ -21,6 +21,17 @@ def numbers(text):
     return Counter(token.replace("≤", "<=").replace("≥", ">=").replace("−", "-").replace(" ", "").lower() for token in NUMBERS.findall(text))
 
 
+MEASUREMENT = re.compile(
+    r"(?<![A-Za-z0-9_.])([+−-]?\d+(?:[.,]\d+)*(?:[eE][+−-]?\d+)?)\s*"
+    r"(µg|μg|mg|kg|g|µL|μL|mL|L|µm|μm|nm|mm|cm|km|m|mV|V|kPa|MPa|Pa|°C)(?![A-Za-z])"
+)
+
+
+def measurements(passage):
+    return Counter((value.replace("−", "-"), unit.replace("μ", "µ"))
+                   for value, unit in MEASUREMENT.findall(passage))
+
+
 def ordered_ids(rows):
     ids = [normalized(row["id"]) for row in rows]
     if not ids or len(ids) != len(set(ids)):
@@ -39,6 +50,10 @@ def check(ledger):
     for passage_id, original, translated in zip(source_ids, source, target):
         text = normalized(original["source"])
         translation = normalized(translated["target"])
+        missing = measurements(text) - measurements(translation)
+        for (value, unit), count in missing.items():
+            issues.append({"id": passage_id, "kind": "measurement_needs_review",
+                           "text": f"{value} {unit}", "count": count})
         for token, difference in (numbers(text) - numbers(translation)).items():
             issues.append({"id": passage_id, "kind": "missing_number", "text": token, "count": difference})
         for token, difference in (numbers(translation) - numbers(text)).items():
