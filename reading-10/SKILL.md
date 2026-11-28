@@ -43,3 +43,5 @@ Given an illustrative `paper.md` with a `Results` heading and a paragraph readin
 Verify the full printed value: a quote beginning “5 mg” does not establish that value inside “15 mg” or “0.5 mg”. Include the sign, decimal and unit in the supporting passage.
 
 For JATS XML, inspect indexed footnotes when a table value, cohort, or method depends on an exception. Cite both the main passage and the footnote. Use the original footnote ID when available and check its callout before attributing it to a specific row.
+
+Preserve comparison operators with numerical claims. For example, a quote reporting p < 0.05 cannot support a note reporting p > 0.05. Equivalent symbolic spellings such as ≤ and <= are accepted. Confirm qualitative phrasing and units against the full passage.

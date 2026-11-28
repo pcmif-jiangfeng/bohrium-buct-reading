@@ -31,3 +31,5 @@ Use the root containing the actual input files. For a PDF text extraction, use t
 For source `paper-a`, locator `P9`, and the line “At 20 °C, membrane B retained 95% after 30 cycles,” record `membrane B → retained → 95%` with scope `20 °C; after 30 cycles` and cite the quoted line. A separate mechanism sentence from the discussion is a separately attributed interpretation.
 
 If a table result is qualified by a linked JATS footnote, cite the value and the footnote as separate evidence entries. A jats_id selector can resolve an original fn ID and its paragraph text. Follow the actual callout to establish that the qualification belongs to that row.
+
+When checking against original files, use `assertions_needing_review` to find duplicate claims and claims with missing or mismatched evidence. Review the individual issues and cite the original passage again before marking the affected assertion verified.

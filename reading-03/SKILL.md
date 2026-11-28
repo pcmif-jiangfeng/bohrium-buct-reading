@@ -33,4 +33,4 @@ Input passage `P4` reads “At 25 °C, the concentration did not exceed 2 mM [3]
 
 When checking thresholds, keep the operator attached to its value. The checker flags a reversed or dropped symbolic inequality and accepts equivalent ASCII and Unicode forms. Review a comparator translated into words in context.
 
-Review each flagged measurement in its own aligned passage. The checker pairs common printed units with their numerical values, so swapping mg and mL between two values produces a review item. Unicode micro signs µ and μ are equivalent. For a translated unit name or valid unit conversion, verify the full dimension and record the equivalence in the review.
+Keep uncertainty attached to its numerical value. The checker accepts an equivalent spelling such as 5 ± 1 and 5 +/- 1, and flags removal of the uncertainty operator. Review uncertainty rendered in words against the source.

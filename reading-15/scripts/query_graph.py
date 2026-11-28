@@ -148,10 +148,15 @@ def run(graph):
         filters = query_filters(query_id, query["filters"])
         matches = [edge for edge in edges.values() if edge_matches(edge, filters)]
         matched_nodes = dict.fromkeys(text(edge[field]) for edge in matches for field in ("subject", "object"))
-        results.append({
+        result = {
             "id": query_id, "filters": filters, "status": "matched" if matches else "no_match",
             "edges": matches, "nodes": [nodes[node_id] for node_id in matched_nodes],
-        })
+        }
+        if query.get("group_by_source") is True:
+            result["edge_ids_by_source"] = {source_id: [] for source_id in sources}
+            for edge in matches:
+                result["edge_ids_by_source"][text(edge["source_id"])].append(text(edge["id"]))
+        results.append(result)
     coverage = {}
     for source_id in sources:
         coverage[source_id] = {

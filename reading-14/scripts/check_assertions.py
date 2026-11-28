@@ -140,7 +140,9 @@ def check(ledger, source_root=None):
     ids = set()
     signatures = set()
     checked_quotes = 0
+    assertions_needing_review = []
     for claim in ledger["assertions"]:
+        prior_issues = len(issues)
         claim_id = text(claim["id"])
         if claim_id in ids:
             raise ValueError(f"duplicate assertion ID: {claim_id}")
@@ -166,9 +168,12 @@ def check(ledger, source_root=None):
                 issues.append({"id": claim_id, "kind": "quote_mismatch", "source_id": source_id, "locator": locator})
             else:
                 checked_quotes += 1
+        if len(issues) > prior_issues:
+            assertions_needing_review.append(claim_id)
     result = {"assertions": len(ids), "checked_quotes": checked_quotes, "issues": issues}
     if source_root is not None:
         result["source_files"] = source_files
+        result["assertions_needing_review"] = assertions_needing_review
     return result
 
 

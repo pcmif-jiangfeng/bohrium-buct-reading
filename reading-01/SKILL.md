@@ -34,3 +34,5 @@ Write verified content early and finish the requested structure from the origina
 For an invented two-column PDF with several lines under each heading, run the default command and inspect page 1. The expected illustrative sequence is the left column's `Introduction` and `Methods`, then the right column's `Results` and `Discussion`. On a separate page with a ruled grid, a cell reading `12.5` appears in `tables[0].rows` with its own box. Use the actual case PDF to verify each record.
 
 When pdfplumber is missing, the same command can use pypdf (tested with 6.x) to recover selectable text by physical page. A report with method pypdf_page_text contains page_text and warnings for each page. Use those pages for partial evidence and check columns, symbols and tables visually. A blank page record identifies where OCR may be needed.
+
+When a single damaged page fails extraction, the report keeps the other pages and names the affected physical page. Use the failure record to select the page for rendering or OCR. Save verified text, tables and page evidence already available.

@@ -12,7 +12,7 @@ import xml.etree.ElementTree as ET
 
 
 HEADING = re.compile(r"^\s{0,3}(#{1,6})\s+(.+?)\s*#*\s*$")
-NUMBER = re.compile(r"[+\-−]?[0-9]+(?:[.,][0-9]+)*(?:[eE][+\-−]?[0-9]+)?[%‰]?")
+NUMBER = re.compile(r"(?:(?:<=|>=|[<>≤≥])\s*)?[+\-−]?[0-9]+(?:[.,][0-9]+)*(?:[eE][+\-−]?[0-9]+)?[%‰]?")
 EMBEDDED_JATS_BLOCKS = {"fig", "fig-group", "table-wrap", "boxed-text", "list", "disp-quote"}
 
 
@@ -22,7 +22,8 @@ def normalized(text):
 
 def number_tokens(text):
     compact_percent = re.sub(r"(?<=[0-9])\s+([%‰])", r"\1", text)
-    return {token.replace("−", "-").lower() for token in NUMBER.findall(compact_percent)}
+    return {re.sub(r"\s+", "", token).replace("≤", "<=").replace("≥", ">=")
+            .replace("−", "-").lower() for token in NUMBER.findall(compact_percent)}
 
 
 def text_blocks(text, markdown=False):

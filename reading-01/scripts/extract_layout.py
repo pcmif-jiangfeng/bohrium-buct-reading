@@ -171,6 +171,8 @@ def extract_page(page, layout, split):
 def mark_recurring_margins(pages):
     groups = {}
     for page in pages:
+        if not page["lines"]:
+            continue
         top, bottom = page["page_bbox"][1::2]
         band = (bottom - top) * 0.08
         for line in page["lines"]:
@@ -226,24 +228,31 @@ def main():
         print(json.dumps({"status": result["status"], "pages": len(result["pages"]), "method": result["method"]}))
         return 1 if result["status"] == "no_selectable_text" else 0
 
+    page_errors = (OSError, ValueError, pdfplumber.utils.exceptions.PdfminerException)
     try:
         with pdfplumber.open(args.pdf) as pdf:
-            pages = [extract_page(page, args.layout, args.split) for page in pdf.pages]
-    except (OSError, ValueError, pdfplumber.utils.exceptions.PdfminerException) as error:
+            pages = []
+            for page in pdf.pages:
+                try:
+                    pages.append(extract_page(page, args.layout, args.split))
+                except page_errors as error:
+                    pages.append({"physical_page": page.page_number, "lines": [], "tables": [],
+                                  "extraction_failed": True, "warnings": [str(error)]})
+    except page_errors as error:
         print(f"extract_layout: {error}", file=sys.stderr)
         return 2
 
     mark_recurring_margins(pages)
     status = "ok"
     if not any(page["lines"] or page["tables"] for page in pages):
-        status = "no_selectable_text"
+        status = "extraction_failed" if any(page.get("extraction_failed") for page in pages) else "no_selectable_text"
     elif any(page["warnings"] for page in pages):
         status = "needs_review"
     result = {"source": args.pdf.name, "coordinate_system": "pdfplumber page with y increasing down", "status": status, "pages": pages}
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"status": status, "pages": len(pages), "lines": sum(len(page["lines"]) for page in pages)}))
-    return 1 if status == "no_selectable_text" else 0
+    return {"extraction_failed": 2, "no_selectable_text": 1}.get(status, 0)
 
 
 if __name__ == "__main__":

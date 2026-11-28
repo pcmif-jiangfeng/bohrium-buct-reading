@@ -38,3 +38,5 @@ Use the available Python command. The checker rejects unknown node references, w
 For two illustrative experiments pointing to a shared polymer via `studies_material`, start at `sample-a`. Set the first step to `out` with the first paper's `source_id`, and the second to `in` with the second paper's `source_id`. Give both steps the `studies_material` predicate filter and set `allow_cross_source: true`. The result links `sample-a`, the polymer concept, and `sample-b` with two separately cited edges. An absent second relation yields `no_match`.
 
 Queries may filter by conditions as well as the source and directed relation. Use the exact condition label from the edge. Records without a matching condition are omitted from that query. Follow the returned evidence to verify comparability across studies.
+
+For a single-edge comparison, set group_by_source to true on the query. Read edge_ids_by_source alongside the matched edges and their quotations. An empty list reports lack of matching evidence in the current graph for that paper.
