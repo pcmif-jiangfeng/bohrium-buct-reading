@@ -9,7 +9,7 @@ from pathlib import Path
 import unicodedata
 
 
-QUERY_FIELDS = {"subject", "object", "predicate", "source_id"}
+QUERY_FIELDS = {"subject", "object", "predicate", "source_id", "conditions"}
 DIRECTIONS = {"out": ("subject", "object"), "in": ("object", "subject")}
 MAX_ROUTES = 100
 
@@ -62,7 +62,11 @@ def query_filters(owner, filters):
 
 
 def edge_matches(edge, filters):
-    return all(text(edge[field]) == value for field, value in filters.items())
+    for field, value in filters.items():
+        actual = edge.get(field)
+        if not isinstance(actual, str) or not actual.strip() or text(actual) != value:
+            return False
+    return True
 
 
 def query_path(query_id, query, edges, nodes):

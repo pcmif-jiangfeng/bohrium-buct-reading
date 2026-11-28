@@ -71,9 +71,12 @@ def file_passages(root, source, issues):
         try:
             if isinstance(selector, dict) and set(selector) == {"jats_id"}:
                 node = nodes.get(text(selector["jats_id"]))
-                if node is None or node.tag.rsplit("}", 1)[-1] not in {"p", "td", "th", "caption"}:
-                    raise ValueError("JATS ID must name one unambiguous paragraph, cell, or caption")
-                passage = "".join(node.itertext())
+                if node is None or node.tag.rsplit("}", 1)[-1] not in {"p", "td", "th", "caption", "fn"}:
+                    raise ValueError("JATS ID must name one unambiguous paragraph, cell, caption, or footnote")
+                if node.tag.rsplit("}", 1)[-1] == "fn" and node.findall("./{*}p"):
+                    passage = " ".join("".join(p.itertext()) for p in node.findall("./{*}p"))
+                else:
+                    passage = "".join(node.itertext())
             elif isinstance(selector, dict) and set(selector) == {"table_id", "cell"}:
                 passage = table_cell(nodes.get(text(selector["table_id"])), selector["cell"])
             elif isinstance(selector, dict) and set(selector) == {"json_pointer"}:
